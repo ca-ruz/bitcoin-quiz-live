@@ -231,6 +231,36 @@ LND_CERT=base64...
 
 ---
 
+## Pendientes / Hoja de ruta
+
+### Conectividad Lightning (prioridad alta)
+
+- [ ] **Pagos automáticos vía NWC** — el servidor paga directamente a la Lightning address del ganador usando `pay_invoice`, sin intervención del presentador. El jugador ingresa su Lightning address al unirse.
+- [ ] **Pagos automáticos vía LND REST** — equivalente para quienes corren su propio nodo, usando el endpoint `/v1/channels/transactions` o `payinvoice`.
+- [ ] **Validación de Lightning address** — verificar en el momento del join que la dirección tiene formato válido (`usuario@dominio.com`) y que el dominio responde LNURL-pay antes de iniciar el quiz.
+- [ ] **Notificación de pago en pantalla** — mostrar al ganador y al presentador confirmación del pago (preimage) o error con motivo legible.
+
+### Fondeo del premio y donaciones
+
+- [ ] **Pool de sats para premios** — mecanismo para que la comunidad o el organizador fondee el premio antes del quiz: Lightning address de depósito, QR en la pantalla de espera, o un invoice generado automáticamente al crear la sala.
+- [ ] **Zaps de Nostr** — integrar un perfil Nostr del quiz para que cualquier persona pueda zapear y los sats vayan directamente al pool de premios.
+- [ ] **Donaciones al creador** — mostrar una Lightning address / QR de donación en la pantalla final del host y en el README para quienes quieran contribuir al desarrollo del proyecto.
+- [ ] **Transparencia del pool** — mostrar al presentador el saldo disponible en la wallet antes de iniciar, para saber si hay fondos suficientes para el premio.
+
+### Modo online / sin presentador (visión a futuro)
+
+Actualmente el proyecto está pensado para **meetups y eventos presenciales** donde hay un presentador controlando el flujo desde una laptop. La visión a largo plazo es poder desplegarlo en un servidor público para que cualquier persona en el mundo pueda participar sin necesidad de un host activo:
+
+- [ ] **Sala permanente o autogestionada** — que el quiz pueda iniciarse automáticamente cuando haya suficientes jugadores conectados, sin requerir que alguien abra `host.html`.
+- [ ] **Despliegue en servidor remoto** — documentar cómo publicarlo en un VPS (con `nginx` + `pm2` o similar) con `BASE_URL` apuntando al dominio público.
+- [ ] **Wallet configurada en el servidor** — con NWC o LND ya configurado en el servidor remoto, los pagos ocurren automáticamente sin que el organizador esté presente.
+- [ ] **Múltiples salas simultáneas** — que distintos grupos puedan jugar al mismo tiempo en el mismo servidor público.
+- [ ] **Protección anti-spam** — rate limiting en joins y creación de salas para uso en internet abierto.
+- [ ] **Preguntas por categoría o dificultad** — permitir que los jugadores o el organizador elijan el tema (historia, técnico, Lightning, etc.).
+- [ ] **Más idiomas** — internacionalización para llegar a comunidades Bitcoin de habla no española.
+
+---
+
 ## Licencia
 
 GNU General Public License v3.0 — ver [LICENSE](./LICENSE).
