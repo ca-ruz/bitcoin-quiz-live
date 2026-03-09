@@ -5,23 +5,43 @@ require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
 
 const express = require("express");
 const http = require("http");
+const os = require("os");
 const { Server } = require("socket.io");
 const path = require("path");
 const QRCode = require("qrcode");
 
+// Auto-detect the machine's local network IP so QR codes work on other devices.
+// Reads .env BASE_URL first; falls back to the first non-internal IPv4 address.
+function getLocalIP() {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === "IPv4" && !net.internal) return net.address;
+    }
+  }
+  return "localhost";
+}
+
 const quizEngine = require("./quizEngine");
 const lightning = require("./lightning");
-const questions = require("../data/questions");
+const allQuestions = require("../data/questions");
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
 const PORT = parseInt(process.env.PORT) || 3000;
-const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const BASE_URL = process.env.BASE_URL || `http://${getLocalIP()}:${PORT}`;
 const TIME_LIMIT = parseInt(process.env.QUESTION_TIME_LIMIT) || 15; // seconds
 const SAT_PER_POINT = parseInt(process.env.SAT_PER_POINT) || 1;
 const RESULTS_DELAY = 8; // seconds to display results before auto-advancing
+const QUESTION_COUNT = parseInt(process.env.QUESTION_COUNT) || allQuestions.length;
+
+// Pick a random subset of questions for each new room (no repeats)
+function pickQuestions() {
+  const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
+  return shuffled.slice(0, Math.min(QUESTION_COUNT, allQuestions.length));
+}
 
 // ─── Static files ────────────────────────────────────────────────────────────
 
@@ -34,7 +54,7 @@ app.get("/api/info", (_req, res) => {
   res.json({
     lightningConfigured: lightning.isConfigured(),
     lightningMethod: lightning.activeMethod(), // "nwc" | "lnd" | "manual"
-    totalQuestions: questions.length,
+    totalQuestions: QUESTION_COUNT,
     timeLimit: TIME_LIMIT
   });
 });
@@ -68,7 +88,8 @@ io.on("connection", (socket) => {
 
   // Host creates a new room and gets back the room code + join URL
   socket.on("create_room", () => {
-    const roomCode = quizEngine.createRoom(socket.id);
+    const roomQuestions = pickQuestions();
+    const roomCode = quizEngine.createRoom(socket.id, roomQuestions);
     socket.join(roomCode); // host joins the socket room for broadcasts
 
     const joinUrl = `${BASE_URL}/?room=${roomCode}`;
@@ -76,7 +97,7 @@ io.on("connection", (socket) => {
     socket.emit("room_created", {
       roomCode,
       joinUrl,
-      totalQuestions: questions.length,
+      totalQuestions: roomQuestions.length,
       timeLimit: TIME_LIMIT
     });
 
@@ -93,7 +114,7 @@ io.on("connection", (socket) => {
       return;
     }
 
-    io.to(room.code).emit("quiz_started", { totalQuestions: questions.length });
+    io.to(room.code).emit("quiz_started", { totalQuestions: room.questions.length });
     console.log(`[Room] ${room.code} quiz started with ${room.players.size} players`);
 
     // Auto-launch first question after a 3-second countdown
@@ -194,7 +215,7 @@ io.on("connection", (socket) => {
     const { room, player } = found;
 
     // Validate answer index is within bounds
-    const question = questions[room.currentQuestionIndex];
+    const question = room.questions[room.currentQuestionIndex];
     if (
       typeof answerIndex !== "number" ||
       answerIndex < 0 ||
@@ -214,7 +235,7 @@ io.on("connection", (socket) => {
     socket.emit("answer_received");
 
     // Push live stats to the host display
-    const stats = quizEngine.getAnswerStats(room.code, question.options.length);
+    const stats = quizEngine.getAnswerStats(room.code, room.questions[room.currentQuestionIndex].options.length);
     io.to(room.hostSocketId).emit("answer_stats", {
       stats,
       answeredCount: room.currentAnswers.size,
@@ -250,17 +271,17 @@ function launchQuestion(roomCode) {
   if (!room || room.state === "finished") return;
 
   const nextIndex = room.currentQuestionIndex + 1;
-  if (nextIndex >= questions.length) {
+  if (nextIndex >= room.questions.length) {
     finishQuiz(roomCode);
     return;
   }
 
-  const question = questions[nextIndex];
+  const question = room.questions[nextIndex];
   quizEngine.startQuestion(roomCode, nextIndex);
 
   const playerPayload = {
     index: nextIndex,
-    total: questions.length,
+    total: room.questions.length,
     text: question.text,
     options: question.options,
     timeLimit: TIME_LIMIT
@@ -292,11 +313,11 @@ function endQuestion(roomCode) {
   const room = quizEngine.getRoom(roomCode);
   if (!room || room.state !== "question") return;
 
-  const question = questions[room.currentQuestionIndex];
+  const question = room.questions[room.currentQuestionIndex];
   const results = quizEngine.scoreQuestion(roomCode, question, TIME_LIMIT);
   const leaderboard = quizEngine.getLeaderboard(roomCode);
   const stats = quizEngine.getAnswerStats(roomCode, question.options.length);
-  const isLast = room.currentQuestionIndex >= questions.length - 1;
+  const isLast = room.currentQuestionIndex >= room.questions.length - 1;
 
   const basePayload = {
     correct: question.correct,
@@ -384,12 +405,9 @@ async function finishQuiz(roomCode) {
 
 server.listen(PORT, () => {
   console.log(`\nBitcoin Quiz Live`);
-  console.log(`  Server:  http://localhost:${PORT}`);
-  console.log(`  Host:    http://localhost:${PORT}/host.html`);
-  console.log(`  Players: http://localhost:${PORT}/`);
-  console.log(
-    `  Lightning: ${lightning.isConfigured() ? "configured" : "not configured (manual payout mode)"}`
-  );
-  console.log(`  Questions: ${questions.length}`);
+  console.log(`  Host:      ${BASE_URL}/host.html`);
+  console.log(`  Players:   ${BASE_URL}/`);
+  console.log(`  Lightning: ${lightning.isConfigured() ? lightning.activeMethod().toUpperCase() + " configured" : "not configured (manual payout mode)"}`);
+  console.log(`  Questions: ${QUESTION_COUNT} of ${allQuestions.length} (random)`);
   console.log(`  Time limit: ${TIME_LIMIT}s per question\n`);
 });

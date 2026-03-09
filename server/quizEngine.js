@@ -9,14 +9,15 @@ class QuizEngine {
 
   // ─── Room lifecycle ────────────────────────────────────────────────────────
 
-  createRoom(hostSocketId) {
+  createRoom(hostSocketId, questions) {
     const roomCode = this._generateRoomCode();
     const room = {
       code: roomCode,
       hostSocketId,
+      questions,                // array of questions selected for this room
       players: new Map(),       // playerId -> player object
       state: "lobby",           // lobby | question | results | finished
-      currentQuestionIndex: -1, // index into questions array
+      currentQuestionIndex: -1, // index into room.questions
       questionTimer: null,      // server-side auto-end timeout handle
       questionStartTime: null,  // Date.now() when question started
       currentAnswers: new Map() // playerId -> { answerIndex, timestamp }

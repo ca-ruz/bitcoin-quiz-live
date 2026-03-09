@@ -4,8 +4,6 @@ Quiz multijugador estilo Kahoot para meetups de Bitcoin.
 Los participantes se unen desde su teléfono, compiten en tiempo real y
 el ganador recibe sats a través de Lightning Network.
 
-> Desarrollado para el Hackathon de Educación Bitcoin con IA — México 2025.
-
 ---
 
 ## Características
@@ -14,11 +12,12 @@ el ganador recibe sats a través de Lightning Network.
 - Participantes se unen desde su celular con un código de sala o escaneando un QR
 - 25 preguntas de Bitcoin para principiantes con explicaciones
 - Temporizador de cuenta regresiva con puntuación por velocidad (50–100 pts)
-- La pregunta termina automáticamente cuando alguien responde correctamente (o se acaba el tiempo)
-- Avance automático entre preguntas — el presentador sólo inicia y observa
+- La pregunta termina automáticamente cuando alguien responde correctamente, todos han contestado, o se acaba el tiempo
+- Avance automático entre preguntas (o terminar manualmente) — el presentador sólo inicia y observa
 - Marcador en tiempo real después de cada pregunta
 - Pago Lightning al ganador: NWC, LND REST o modo manual
 - QR en pantalla del presentador para que los participantes se unan fácilmente
+- URL de sala mostrada en pantalla del presentador (para participantes con laptop)
 - UI mobile-first — botones grandes, legible en cualquier pantalla
 
 ---
@@ -51,23 +50,19 @@ npm start
 npm run dev
 ```
 
+El servidor detecta automáticamente tu IP local y la muestra en consola y en la pantalla del host.
+
 ### 4. Abrir el panel del presentador
 
 ```
 http://localhost:3000/host.html
 ```
 
-Haz clic en **Crear Sala**. Verás el código de 4 letras y el código QR.
+Haz clic en **Crear Sala**. Verás el código de 4 letras, el código QR y la URL de sala.
 
 ### 5. Los participantes se unen
 
-Desde su celular abren:
-
-```
-http://<tu-ip-local>:3000
-```
-
-O escanean el QR en la pantalla del presentador.
+Escanean el QR en la pantalla del presentador o abren la URL que aparece en la pantalla del host.
 Ingresan su apodo y el código de sala.
 
 > **Tip para meetups:** conecta la laptop a un proyector y comparte tu IP local
@@ -79,10 +74,10 @@ Ingresan su apodo y el código de sala.
 1. Espera a que los participantes se unan (aparecen en vivo en tu pantalla).
 2. Haz clic en **Iniciar Quiz**.
 3. La primera pregunta lanza automáticamente con un temporizador de 15 segundos.
-4. La pregunta termina en cuanto alguien responde correctamente (o se acaba el tiempo).
-5. Se muestran los resultados durante 14 segundos (respuesta correcta + explicación + marcador).
+4. La pregunta termina en cuanto alguien responde correctamente, todos han contestado, o se acaba el tiempo.
+5. Se muestran los resultados durante unos segundos (respuesta correcta + explicación + marcador).
 6. La siguiente pregunta inicia sola — no necesitas hacer nada.
-7. Al terminar la pregunta 25 (o si haces clic en **Terminar Quiz**) aparecen los resultados finales con la factura Lightning del ganador.
+7. Al terminar todas las preguntas (o si haces clic en **Terminar Quiz**) aparecen los resultados finales. Si Lightning está configurado, se genera automáticamente una factura por los sats del ganador; de lo contrario se muestra el monto a pagar en modo manual.
 
 ---
 
@@ -167,26 +162,6 @@ Si no configuras ninguna opción Lightning, el servidor corre en **modo manual**
 
 ---
 
-## ¿Puedo hostearlo en GitHub Pages?
-
-**No.** GitHub Pages sólo sirve archivos estáticos. Esta aplicación requiere
-un servidor Node.js con WebSockets (Socket.io) corriendo permanentemente.
-
-**Opciones de hosting gratuito o económico:**
-
-| Plataforma | Tier gratuito | Deploy desde GitHub |
-|------------|---------------|---------------------|
-| [Railway](https://railway.app) | Sí (con límite de uso) | Sí, un click |
-| [Render](https://render.com) | Sí (se duerme tras inactividad) | Sí |
-| [Fly.io](https://fly.io) | Sí (3 VMs pequeñas) | Sí, con CLI |
-| VPS (DigitalOcean, Hetzner) | Desde ~$4/mes | Manual |
-
-**Para meetups locales** no necesitas hosting externo: corre el servidor en tu laptop,
-conecta el proyector, y todos los participantes en la misma red WiFi se conectan
-a `http://<tu-ip-local>:3000`. Simple y sin depender de internet.
-
----
-
 ## Estructura del proyecto
 
 ```
@@ -203,6 +178,8 @@ bitcoin-quiz-live/
 │   └── client.js        Utilidades JS compartidas
 ├── data/
 │   └── questions.js     25 preguntas Bitcoin para principiantes
+├── docs/
+│   └── index.html       Landing page (GitHub Pages)
 ├── .env.example         Plantilla de configuración
 ├── LICENSE              GNU General Public License v3
 └── package.json
@@ -230,10 +207,11 @@ Puedes tener 3 o 4 opciones por pregunta.
 ## Variables de entorno
 
 ```env
-PORT=3000                    # Puerto del servidor
-BASE_URL=http://localhost:3000  # URL pública (para el QR)
-QUESTION_TIME_LIMIT=15       # Segundos por pregunta
-SAT_PER_POINT=1              # Sats por punto para la recompensa
+PORT=3000                      # Puerto del servidor
+BASE_URL=http://<tu-ip-local>:3000  # URL pública (para el QR); se auto-detecta si se omite
+QUESTION_TIME_LIMIT=15         # Segundos por pregunta
+SAT_PER_POINT=1                # Sats por punto para la recompensa
+QUESTION_COUNT=10              # Preguntas por sesión (selección aleatoria); omitir = 25 (todas)
 
 # Lightning (elige UNA opción):
 NWC_URL=nostr+walletconnect://...   # Opción A: NWC
@@ -249,7 +227,6 @@ LND_CERT=base64...
 - Los apodos tienen límite de 20 caracteres y se escapan antes de renderizarse.
 - Cada jugador sólo puede responder una vez por pregunta (validado en el servidor).
 - Las salas viven en memoria y se borran al reiniciar el servidor.
-- Para un deploy público, coloca el servidor detrás de un proxy inverso (nginx/caddy) con HTTPS.
 
 ---
 
