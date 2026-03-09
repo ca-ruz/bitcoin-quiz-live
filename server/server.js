@@ -1,0 +1,395 @@
+// server.js — Express + Socket.io entry point
+// Handles all real-time quiz events between host and players.
+
+require("dotenv").config({ path: require("path").join(__dirname, "../.env") });
+
+const express = require("express");
+const http = require("http");
+const { Server } = require("socket.io");
+const path = require("path");
+const QRCode = require("qrcode");
+
+const quizEngine = require("./quizEngine");
+const lightning = require("./lightning");
+const questions = require("../data/questions");
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+const PORT = parseInt(process.env.PORT) || 3000;
+const BASE_URL = process.env.BASE_URL || `http://localhost:${PORT}`;
+const TIME_LIMIT = parseInt(process.env.QUESTION_TIME_LIMIT) || 15; // seconds
+const SAT_PER_POINT = parseInt(process.env.SAT_PER_POINT) || 1;
+const RESULTS_DELAY = 8; // seconds to display results before auto-advancing
+
+// ─── Static files ────────────────────────────────────────────────────────────
+
+app.use(express.static(path.join(__dirname, "../public")));
+
+// ─── HTTP API ─────────────────────────────────────────────────────────────────
+
+// Info endpoint — lets the client know if Lightning is available
+app.get("/api/info", (_req, res) => {
+  res.json({
+    lightningConfigured: lightning.isConfigured(),
+    lightningMethod: lightning.activeMethod(), // "nwc" | "lnd" | "manual"
+    totalQuestions: questions.length,
+    timeLimit: TIME_LIMIT
+  });
+});
+
+// QR code endpoint — generates a PNG QR code for any URL
+app.get("/api/qr", async (req, res) => {
+  const url = String(req.query.url || "").slice(0, 500);
+  if (!url) return res.status(400).send("Missing url param");
+  try {
+    const png = await QRCode.toBuffer(url, {
+      type: "png",
+      width: 300,
+      margin: 2,
+      color: { dark: "#000000", light: "#ffffff" }
+    });
+    res.set("Content-Type", "image/png");
+    res.send(png);
+  } catch (e) {
+    res.status(500).send("QR error");
+  }
+});
+
+// ─── Socket.io ────────────────────────────────────────────────────────────────
+
+io.on("connection", (socket) => {
+  console.log(`[+] Connected  ${socket.id}`);
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  HOST EVENTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Host creates a new room and gets back the room code + join URL
+  socket.on("create_room", () => {
+    const roomCode = quizEngine.createRoom(socket.id);
+    socket.join(roomCode); // host joins the socket room for broadcasts
+
+    const joinUrl = `${BASE_URL}/?room=${roomCode}`;
+
+    socket.emit("room_created", {
+      roomCode,
+      joinUrl,
+      totalQuestions: questions.length,
+      timeLimit: TIME_LIMIT
+    });
+
+    console.log(`[Room] Created ${roomCode}`);
+  });
+
+  // Host signals quiz start — auto-launches first question after a short countdown
+  socket.on("start_quiz", () => {
+    const room = quizEngine.getRoomByHostSocket(socket.id);
+    if (!room) return;
+
+    if (room.players.size === 0) {
+      socket.emit("quiz_error", { message: "Aún no se ha unido ningún jugador." });
+      return;
+    }
+
+    io.to(room.code).emit("quiz_started", { totalQuestions: questions.length });
+    console.log(`[Room] ${room.code} quiz started with ${room.players.size} players`);
+
+    // Auto-launch first question after a 3-second countdown
+    setTimeout(() => launchQuestion(room.code), 3000);
+  });
+
+  // Host can force-end the current question early if needed
+  socket.on("force_end_question", () => {
+    const room = quizEngine.getRoomByHostSocket(socket.id);
+    if (!room || room.state !== "question") return;
+    clearTimeout(room.questionTimer);
+    endQuestion(room.code);
+  });
+
+  // Host ends the quiz manually
+  socket.on("end_quiz", () => {
+    const room = quizEngine.getRoomByHostSocket(socket.id);
+    if (!room) return;
+    finishQuiz(room.code);
+  });
+
+  // Host restarts with a fresh room (same socket, new room code)
+  socket.on("restart_quiz", () => {
+    const room = quizEngine.getRoomByHostSocket(socket.id);
+    if (room) {
+      io.to(room.code).emit("quiz_restarted");
+      quizEngine.removeRoom(room.code);
+    }
+    // Create a new room for the same host
+    const newCode = quizEngine.createRoom(socket.id);
+    socket.join(newCode);
+    const joinUrl = `${BASE_URL}/?room=${newCode}`;
+    socket.emit("room_created", {
+      roomCode: newCode,
+      joinUrl,
+      totalQuestions: questions.length,
+      timeLimit: TIME_LIMIT
+    });
+    console.log(`[Room] Restarted → ${newCode}`);
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  PLAYER EVENTS
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  // Player joins (or rejoins) a room
+  socket.on("join_room", ({ roomCode, nickname }) => {
+    // Sanitize inputs
+    roomCode = String(roomCode || "").toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 6);
+    nickname = String(nickname || "").trim().slice(0, 20);
+
+    if (!nickname) {
+      socket.emit("join_error", { message: "El apodo no puede estar vacío." });
+      return;
+    }
+    if (!roomCode) {
+      socket.emit("join_error", { message: "El código de sala no puede estar vacío." });
+      return;
+    }
+
+    const result = quizEngine.joinRoom(roomCode, nickname, socket.id);
+
+    if (result.error) {
+      socket.emit("join_error", { message: result.error });
+      return;
+    }
+
+    socket.join(roomCode);
+
+    socket.emit("join_success", {
+      playerId: result.playerId,
+      nickname: result.player.nickname,
+      roomCode,
+      rejoined: result.rejoined || false,
+      score: result.player.score
+    });
+
+    // Tell the host someone joined so the player list updates
+    const room = quizEngine.getRoom(roomCode);
+    if (room) {
+      io.to(room.hostSocketId).emit("player_joined", {
+        players: quizEngine.getPlayers(roomCode).map(p => ({
+          id: p.id,
+          nickname: p.nickname,
+          score: p.score
+        }))
+      });
+    }
+
+    console.log(`[Room] ${roomCode} ← ${nickname} ${result.rejoined ? "(rejoin)" : "joined"}`);
+  });
+
+  // Player submits an answer
+  socket.on("submit_answer", ({ answerIndex }) => {
+    const found = quizEngine.getRoomByPlayerSocket(socket.id);
+    if (!found) return;
+
+    const { room, player } = found;
+
+    // Validate answer index is within bounds
+    const question = questions[room.currentQuestionIndex];
+    if (
+      typeof answerIndex !== "number" ||
+      answerIndex < 0 ||
+      answerIndex >= question.options.length
+    ) {
+      socket.emit("answer_error", { message: "Respuesta inválida." });
+      return;
+    }
+
+    const result = quizEngine.submitAnswer(room.code, player.id, answerIndex);
+    if (result.error) {
+      socket.emit("answer_error", { message: result.error });
+      return;
+    }
+
+    // Acknowledge receipt immediately (player sees "waiting" state)
+    socket.emit("answer_received");
+
+    // Push live stats to the host display
+    const stats = quizEngine.getAnswerStats(room.code, question.options.length);
+    io.to(room.hostSocketId).emit("answer_stats", {
+      stats,
+      answeredCount: room.currentAnswers.size,
+      totalPlayers: room.players.size
+    });
+
+    // End question early if: first correct answer OR every player has now answered
+    if (answerIndex === question.correct || quizEngine.allPlayersAnswered(room.code)) {
+      clearTimeout(room.questionTimer);
+      setTimeout(() => endQuestion(room.code), 1200); // brief pause for drama
+    }
+  });
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  //  DISCONNECT
+  // ═══════════════════════════════════════════════════════════════════════════
+
+  socket.on("disconnect", () => {
+    console.log(`[-] Disconnected ${socket.id}`);
+
+    // If the host disconnects, warn players (room stays alive for reconnect)
+    const hostRoom = quizEngine.getRoomByHostSocket(socket.id);
+    if (hostRoom) {
+      io.to(hostRoom.code).emit("host_disconnected");
+    }
+  });
+});
+
+// ─── Helper: launch the next question automatically ───────────────────────────
+
+function launchQuestion(roomCode) {
+  const room = quizEngine.getRoom(roomCode);
+  if (!room || room.state === "finished") return;
+
+  const nextIndex = room.currentQuestionIndex + 1;
+  if (nextIndex >= questions.length) {
+    finishQuiz(roomCode);
+    return;
+  }
+
+  const question = questions[nextIndex];
+  quizEngine.startQuestion(roomCode, nextIndex);
+
+  const playerPayload = {
+    index: nextIndex,
+    total: questions.length,
+    text: question.text,
+    options: question.options,
+    timeLimit: TIME_LIMIT
+  };
+
+  // Players get the question without the correct answer
+  io.to(roomCode).emit("question_started", playerPayload);
+
+  // Host gets the correct answer too
+  const hostSocket = io.sockets.sockets.get(room.hostSocketId);
+  if (hostSocket) {
+    hostSocket.emit("question_started", {
+      ...playerPayload,
+      correct: question.correct,
+      explanation: question.explanation
+    });
+  }
+
+  console.log(`[Room] ${roomCode} Q${nextIndex + 1} started (auto)`);
+
+  room.questionTimer = setTimeout(() => {
+    endQuestion(roomCode);
+  }, TIME_LIMIT * 1000 + 800);
+}
+
+// ─── Helper: end the current question and broadcast results ──────────────────
+
+function endQuestion(roomCode) {
+  const room = quizEngine.getRoom(roomCode);
+  if (!room || room.state !== "question") return;
+
+  const question = questions[room.currentQuestionIndex];
+  const results = quizEngine.scoreQuestion(roomCode, question, TIME_LIMIT);
+  const leaderboard = quizEngine.getLeaderboard(roomCode);
+  const stats = quizEngine.getAnswerStats(roomCode, question.options.length);
+  const isLast = room.currentQuestionIndex >= questions.length - 1;
+
+  const basePayload = {
+    correct: question.correct,
+    explanation: question.explanation,
+    stats,
+    leaderboard,
+    questionIndex: room.currentQuestionIndex,
+    isLastQuestion: isLast
+  };
+
+  // Send host the full result payload
+  const hostSocket = io.sockets.sockets.get(room.hostSocketId);
+  if (hostSocket) {
+    hostSocket.emit("question_ended", basePayload);
+  }
+
+  // Send each player their personal result alongside the shared payload
+  for (const [playerId, player] of room.players.entries()) {
+    const playerSocket = io.sockets.sockets.get(player.socketId);
+    if (!playerSocket) continue;
+
+    const personal = results[playerId] || { score: 0, correct: false };
+    const playerAnswer = room.currentAnswers.get(playerId);
+    playerSocket.emit("question_ended", {
+      ...basePayload,
+      playerResult: {
+        correct: personal.correct,
+        pointsEarned: personal.score,
+        totalScore: player.score,
+        // -1 means the player didn't submit an answer in time
+        answerIndex: playerAnswer !== undefined ? playerAnswer.answerIndex : -1
+      }
+    });
+  }
+
+  console.log(`[Room] ${roomCode} Q${room.currentQuestionIndex + 1} ended`);
+
+  // Tell everyone how long results will be shown before auto-advancing
+  io.to(roomCode).emit("auto_advance", { seconds: RESULTS_DELAY });
+
+  if (isLast) {
+    setTimeout(() => finishQuiz(roomCode), RESULTS_DELAY * 1000);
+  } else {
+    setTimeout(() => launchQuestion(roomCode), RESULTS_DELAY * 1000);
+  }
+}
+
+// ─── Helper: finalise the quiz and emit winner + Lightning invoice ────────────
+
+async function finishQuiz(roomCode) {
+  const room = quizEngine.getRoom(roomCode);
+  if (!room || room.state === "finished") return;
+
+  const leaderboard = quizEngine.endQuiz(roomCode);
+  const winner = leaderboard[0];
+
+  let rewardInfo = null;
+  if (winner) {
+    const satAmount = Math.max(1, Math.floor(winner.score * SAT_PER_POINT));
+    const memo = `Bitcoin Quiz Winner: ${winner.nickname} (${winner.score} pts)`;
+    rewardInfo = await lightning.createInvoice(satAmount, memo);
+    rewardInfo.satAmount = satAmount;
+    rewardInfo.winnerNickname = winner.nickname;
+    rewardInfo.winnerScore = winner.score;
+  }
+
+  // Host gets the full reward info (invoice or manual amount)
+  const hostSocket = io.sockets.sockets.get(room.hostSocketId);
+  if (hostSocket) {
+    hostSocket.emit("quiz_ended", { leaderboard, rewardInfo });
+  }
+
+  // Players just see the final leaderboard
+  io.to(roomCode).emit("quiz_ended", {
+    leaderboard,
+    winnerNickname: winner?.nickname
+  });
+
+  console.log(
+    `[Room] ${roomCode} finished. Winner: ${winner?.nickname} (${winner?.score} pts, ${rewardInfo?.satAmount} sats)`
+  );
+}
+
+// ─── Start ────────────────────────────────────────────────────────────────────
+
+server.listen(PORT, () => {
+  console.log(`\nBitcoin Quiz Live`);
+  console.log(`  Server:  http://localhost:${PORT}`);
+  console.log(`  Host:    http://localhost:${PORT}/host.html`);
+  console.log(`  Players: http://localhost:${PORT}/`);
+  console.log(
+    `  Lightning: ${lightning.isConfigured() ? "configured" : "not configured (manual payout mode)"}`
+  );
+  console.log(`  Questions: ${questions.length}`);
+  console.log(`  Time limit: ${TIME_LIMIT}s per question\n`);
+});

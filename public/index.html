@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Quiz — Unirse</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .question-wrap { width: 100%; max-width: 700px; padding: 0 12px; }
+    #screen-question { justify-content: flex-start; padding-top: 20px; }
+    .answered-overlay {
+      text-align: center;
+      background: rgba(0,0,0,.55);
+      border-radius: var(--radius);
+      padding: 20px;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════════════ UNIRSE ══ -->
+<div class="screen active" id="screen-join">
+  <p class="logo">₿<span>Quiz</span></p>
+  <p class="tagline">Aprende Bitcoin. Gana Sats.</p>
+
+  <div class="card">
+    <div class="field">
+      <label for="inp-nickname">Tu apodo</label>
+      <input type="text" id="inp-nickname" placeholder="Satoshi" maxlength="20" autocomplete="off" />
+    </div>
+    <div class="field">
+      <label for="inp-room">Código de sala</label>
+      <input type="text" id="inp-room" placeholder="ABCD" maxlength="6"
+             autocomplete="off" autocapitalize="characters"
+             style="font-family:monospace;font-size:1.4rem;letter-spacing:4px;text-transform:uppercase" />
+    </div>
+    <button class="btn btn-primary" id="btn-join">Unirse al Quiz</button>
+    <p id="join-error" class="text-center mt-sm" style="color:#e21b3c;font-size:.9rem;min-height:1.2em"></p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════ ESPERANDO ══ -->
+<div class="screen" id="screen-waiting">
+  <p class="logo">₿<span>Quiz</span></p>
+  <div class="card text-center">
+    <p style="font-size:2rem;margin-bottom:8px">⏳</p>
+    <h2 style="margin-bottom:6px">¡Ya estás dentro!</h2>
+    <p class="text-muted mb-sm">Esperando que el presentador inicie el quiz…</p>
+    <p id="wait-name" style="font-size:1.3rem;font-weight:700;color:var(--accent);margin-bottom:4px"></p>
+    <p id="wait-room" class="text-muted" style="font-family:monospace;letter-spacing:3px"></p>
+    <hr class="divider" />
+    <p class="text-muted" style="font-size:.9rem">
+      <span class="pulse">●</span> Quédate en esta página — el quiz iniciará automáticamente
+    </p>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════════ PREGUNTA ══ -->
+<div class="screen" id="screen-question">
+  <div class="question-wrap">
+    <p class="question-counter" id="q-counter">Pregunta 1 de 25</p>
+
+    <div class="timer-wrap">
+      <div class="timer-track" style="flex:1">
+        <div class="timer-bar" id="player-timer-bar" style="width:100%"></div>
+      </div>
+      <span class="timer-number" id="player-timer-num">15</span>
+    </div>
+
+    <div class="question-text" id="q-text">Cargando pregunta…</div>
+
+    <div class="answers-grid" id="answers-grid"></div>
+
+    <div class="answered-overlay" id="answered-overlay" style="display:none">
+      <p style="font-size:1.5rem;margin-bottom:4px">✔</p>
+      <p style="font-weight:700;margin-bottom:2px">¡Respuesta enviada!</p>
+      <p class="text-muted" style="font-size:.9rem"><span class="pulse">●</span> Esperando a los demás…</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ RESULTADO PREGUNTA ══ -->
+<div class="screen" id="screen-result">
+  <div class="card" style="max-width:500px;text-align:center">
+    <div class="result-badge" id="result-emoji"></div>
+    <div class="result-label" id="result-label"></div>
+    <div class="points-earned" id="result-points"></div>
+    <div class="total-score"   id="result-total"></div>
+    <div class="explanation"   id="result-explanation"></div>
+
+    <hr class="divider" />
+    <p class="section-title">Marcador</p>
+    <div class="leaderboard" id="result-leaderboard"></div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ RESULTADO FINAL ══ -->
+<div class="screen" id="screen-final">
+  <p class="logo">₿<span>Quiz</span></p>
+  <div class="card" style="max-width:500px;text-align:center">
+
+    <!-- Sección ganador -->
+    <div id="final-winner-section" style="display:none">
+      <p style="font-size:3rem;margin-bottom:6px">🏆</p>
+      <h2 style="margin-bottom:6px;color:var(--accent)">¡Ganaste!</h2>
+      <p class="text-muted" style="margin-bottom:16px">El presentador te enviará los sats. ¡Bien jugado!</p>
+    </div>
+
+    <!-- Sección participantes (no ganadores) -->
+    <div id="final-participant-section" style="display:none">
+      <p style="font-size:3rem;margin-bottom:6px">🎉</p>
+      <h2 style="margin-bottom:6px">¡Gracias por participar!</h2>
+      <p id="final-position-msg" style="color:var(--accent);font-weight:700;font-size:1.1rem;margin-bottom:4px"></p>
+      <p id="final-winner-announce" class="text-muted" style="font-size:.92rem;margin-bottom:16px"></p>
+    </div>
+
+    <hr class="divider" />
+    <p class="section-title">Clasificación Final</p>
+    <div class="leaderboard" id="final-leaderboard"></div>
+    <hr class="divider" />
+    <p class="text-muted" style="font-size:.9rem">
+      Tip: ¡corre tu propio nodo Bitcoin y únete a la Red Lightning!
+    </p>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const socket = io();
+  let myPlayerId = null;
+  let myNickname = "";
+  let cancelTimer = null;
+  let autoAdvanceTimer = null; // tracked so quiz_ended can cancel it
+
+  // Prellenar código de sala desde ?room= en la URL
+  const urlRoom = new URLSearchParams(location.search).get("room");
+  if (urlRoom) document.getElementById("inp-room").value = urlRoom.toUpperCase();
+
+  document.getElementById("btn-join").addEventListener("click", joinQuiz);
+  document.getElementById("inp-room").addEventListener("keydown", e => { if (e.key === "Enter") joinQuiz(); });
+  document.getElementById("inp-nickname").addEventListener("keydown", e => { if (e.key === "Enter") joinQuiz(); });
+
+  document.getElementById("inp-room").addEventListener("input", function () {
+    const pos = this.selectionStart;
+    this.value = this.value.toUpperCase();
+    this.setSelectionRange(pos, pos);
+  });
+
+  function joinQuiz() {
+    const nickname = document.getElementById("inp-nickname").value.trim();
+    const roomCode = document.getElementById("inp-room").value.trim().toUpperCase();
+    const errEl = document.getElementById("join-error");
+
+    if (!nickname) { errEl.textContent = "Por favor ingresa un apodo."; return; }
+    if (nickname.length > 20) { errEl.textContent = "El apodo debe tener máximo 20 caracteres."; return; }
+    if (!roomCode) { errEl.textContent = "Por favor ingresa el código de sala."; return; }
+
+    errEl.textContent = "";
+    document.getElementById("btn-join").disabled = true;
+    socket.emit("join_room", { roomCode, nickname });
+  }
+
+  socket.on("join_success", ({ playerId, nickname, roomCode }) => {
+    myPlayerId = playerId;
+    myNickname = nickname;
+    document.getElementById("wait-name").textContent = nickname;
+    document.getElementById("wait-room").textContent = "Sala: " + roomCode;
+    showScreen("screen-waiting");
+  });
+
+  socket.on("join_error", ({ message }) => {
+    document.getElementById("join-error").textContent = message;
+    document.getElementById("btn-join").disabled = false;
+  });
+
+  socket.on("question_started", ({ index, total, text, options, timeLimit }) => {
+    document.getElementById("answered-overlay").style.display = "none";
+    document.getElementById("q-counter").textContent = `Pregunta ${index + 1} de ${total}`;
+    document.getElementById("q-text").textContent = text;
+
+    const grid = document.getElementById("answers-grid");
+    grid.innerHTML = "";
+    options.forEach((opt, i) => {
+      const btn = document.createElement("button");
+      btn.className = `answer-btn ans-${i}`;
+      btn.innerHTML = `<span class="icon">${ANSWER_ICONS[i]}</span>${esc(opt)}`;
+      btn.addEventListener("click", () => submitAnswer(i));
+      grid.appendChild(btn);
+    });
+
+    showScreen("screen-question");
+
+    if (cancelTimer) cancelTimer();
+    cancelTimer = startCountdown(timeLimit, () => {
+      disableAnswerButtons();
+    }, "player-timer-bar", "player-timer-num");
+  });
+
+  function submitAnswer(index) {
+    // Immediately show which button was picked and dim the rest
+    document.querySelectorAll(".answer-btn").forEach((btn, i) => {
+      btn.disabled = true;
+      if (i === index) {
+        btn.classList.add("selected-ans");   // bright ring around the chosen option
+      } else {
+        btn.style.filter = "brightness(.4)"; // dim the others
+      }
+    });
+    socket.emit("submit_answer", { answerIndex: index });
+    document.getElementById("answered-overlay").style.display = "block";
+  }
+
+  socket.on("question_ended", ({ correct, explanation, leaderboard, playerResult }) => {
+    if (cancelTimer) { cancelTimer(); cancelTimer = null; }
+
+    // answerIndex == -1 means the player never submitted an answer in time
+    const myAnswer = playerResult?.answerIndex ?? -1;
+    const didAnswer = myAnswer !== -1;
+
+    // Colour buttons:
+    //   correct answer       → always highlight green
+    //   player's wrong pick  → dim red
+    //   everything else      → neutral dim (no false implication of selection)
+    document.querySelectorAll(".answer-btn").forEach((btn, i) => {
+      btn.disabled = true;
+      // Clear the selection highlight before applying reveal colours
+      btn.classList.remove("selected-ans");
+      btn.style.filter = "";
+      btn.style.transform = "";
+
+      if (i === correct) {
+        btn.classList.add("correct-ans");           // always show the right answer
+      } else if (didAnswer && i === myAnswer) {
+        btn.classList.add("wrong-ans");              // player's wrong choice
+      } else {
+        btn.style.filter = "brightness(.35)";        // neutral dim
+      }
+    });
+
+    setTimeout(() => {
+      let emoji, labelText, labelClass, pointsText;
+
+      if (!didAnswer) {
+        emoji      = "⏰";
+        labelText  = "Sin respuesta";
+        labelClass = "incorrect";
+        pointsText = "+0 puntos";
+      } else if (playerResult.correct) {
+        emoji      = "✅";
+        labelText  = "¡Correcto!";
+        labelClass = "correct";
+        pointsText = `+${fmt(playerResult.pointsEarned)} puntos`;
+      } else {
+        emoji      = "❌";
+        labelText  = "¡Incorrecto!";
+        labelClass = "incorrect";
+        pointsText = "+0 puntos";
+      }
+
+      document.getElementById("result-emoji").textContent = emoji;
+      const label = document.getElementById("result-label");
+      label.textContent = labelText;
+      label.className = "result-label " + labelClass;
+
+      document.getElementById("result-points").textContent = pointsText;
+      document.getElementById("result-total").textContent =
+        playerResult ? `Total: ${fmt(playerResult.totalScore)} puntos` : "";
+      document.getElementById("result-explanation").textContent = explanation || "";
+      document.getElementById("result-leaderboard").innerHTML = buildLeaderboard(leaderboard, myPlayerId);
+
+      showScreen("screen-result");
+    }, 1800);
+  });
+
+  // Server auto-advances — move player back to waiting screen before next question
+  // Save the timer ID so quiz_ended can cancel it if the game just finished
+  socket.on("auto_advance", ({ seconds }) => {
+    if (autoAdvanceTimer) clearTimeout(autoAdvanceTimer);
+    autoAdvanceTimer = setTimeout(() => {
+      autoAdvanceTimer = null;
+      showScreen("screen-waiting");
+    }, seconds * 1000 - 1000);
+  });
+
+  socket.on("quiz_ended", ({ leaderboard, winnerNickname }) => {
+    // Cancel any pending auto-advance so it doesn't redirect away from this screen
+    if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+    if (cancelTimer) { cancelTimer(); cancelTimer = null; }
+
+    const isWinner = winnerNickname === myNickname;
+
+    // Show the right section
+    document.getElementById("final-winner-section").style.display      = isWinner ? "block" : "none";
+    document.getElementById("final-participant-section").style.display = isWinner ? "none"  : "block";
+
+    if (!isWinner) {
+      // Tell the player their finishing position and score
+      const myPos = leaderboard.findIndex(p => p.id === myPlayerId);
+      if (myPos !== -1) {
+        const medal = ["🥇","🥈","🥉"][myPos] || `#${myPos + 1}`;
+        document.getElementById("final-position-msg").textContent =
+          `Terminaste en el lugar ${medal} con ${fmt(leaderboard[myPos].score)} puntos`;
+      }
+      document.getElementById("final-winner-announce").textContent =
+        `Ganador/a: ${winnerNickname} — ¡felicidades!`;
+    }
+
+    document.getElementById("final-leaderboard").innerHTML = buildLeaderboard(leaderboard, myPlayerId);
+    showScreen("screen-final");
+  });
+
+  socket.on("host_disconnected", () => {
+    alert("El presentador se desconectó. El quiz podría reanudarse en breve.");
+  });
+
+  socket.on("quiz_restarted", () => {
+    showScreen("screen-join");
+    document.getElementById("btn-join").disabled = false;
+  });
+})();
+</script>
+</body>
+</html>

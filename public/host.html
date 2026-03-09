@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Bitcoin Quiz — Presentador</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    /* Explicit centering so screens don't drift when a scrollbar appears */
+    .host-container { width: 100%; max-width: 760px; margin: 0 auto; }
+    .question-host-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+      width: 100%;
+      max-width: 860px;
+      align-items: start;
+      margin: 0 auto;
+    }
+    @media (max-width: 600px) { .question-host-grid { grid-template-columns: 1fr; } }
+    /* All host screens: start from the top and center content horizontally */
+    #screen-lobby, #screen-question, #screen-results, #screen-final {
+      justify-content: flex-start;
+      align-items: center;
+      padding-top: 28px;
+    }
+    .stat-fill.ans-0 { background: var(--ans-0); }
+    .stat-fill.ans-1 { background: var(--ans-1); }
+    .stat-fill.ans-2 { background: var(--ans-2); }
+    .stat-fill.ans-3 { background: var(--ans-3); }
+    .answered-count { font-size: .9rem; color: var(--muted); text-align: center; margin-top: 6px; }
+    .correct-pill {
+      display: inline-block;
+      background: var(--correct);
+      color: #fff;
+      border-radius: 99px;
+      padding: 3px 14px;
+      font-size: .85rem;
+      font-weight: 700;
+      margin-left: 8px;
+    }
+  </style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════ INICIO ══ -->
+<div class="screen active" id="screen-setup">
+  <p class="logo">₿<span>Quiz</span> <span style="font-size:1.2rem;font-weight:400;color:var(--muted)">Presentador</span></p>
+  <p class="tagline">Quiz de Bitcoin para tu meetup</p>
+
+  <div class="card" style="max-width:420px;text-align:center">
+    <p style="font-size:2.5rem;margin-bottom:8px">⚡</p>
+    <h2 style="margin-bottom:6px">¿Listo para presentar?</h2>
+    <p class="text-muted" style="font-size:.92rem;margin-bottom:20px">
+      Crea una sala, comparte el código con los participantes y conduce el quiz pregunta por pregunta.
+    </p>
+    <button class="btn btn-primary" id="btn-create-room">Crear Sala</button>
+    <p id="lightning-status" class="text-muted mt-sm" style="font-size:.85rem"></p>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ SALA ══ -->
+<div class="screen" id="screen-lobby">
+  <div class="host-container">
+    <p class="logo" style="font-size:1.8rem;margin-bottom:2px">₿<span>Quiz</span></p>
+
+    <div class="card" style="text-align:center;margin-bottom:14px">
+      <p class="section-title">Los jugadores entran en</p>
+      <p id="lobby-join-url" class="text-muted" style="font-size:.88rem;margin-bottom:10px;word-break:break-all"></p>
+
+      <p class="section-title">Código de Sala</p>
+      <div class="room-code" id="lobby-room-code">----</div>
+
+      <div class="qr-wrap" id="lobby-qr" style="margin:12px auto">
+        <img id="lobby-qr-img" src="" alt="Código QR" width="200" height="200" />
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <p class="section-title">Jugadores conectados: <span id="player-count" style="color:var(--accent)">0</span></p>
+      <div class="player-list" id="player-list">
+        <em class="text-muted" style="font-size:.88rem">Esperando participantes…</em>
+      </div>
+      <button class="btn btn-primary" id="btn-start-quiz" disabled>Iniciar Quiz</button>
+      <p id="lobby-hint" class="text-center text-muted mt-sm" style="font-size:.85rem">Se necesita al menos 1 jugador</p>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ PREGUNTA ══ -->
+<div class="screen" id="screen-question">
+  <div class="question-host-grid">
+    <div>
+      <div class="card" style="margin-bottom:14px">
+        <p class="question-counter" id="host-q-counter">Pregunta 1 de 25</p>
+
+        <div class="timer-wrap" style="margin-bottom:10px">
+          <div class="timer-track" style="flex:1">
+            <div class="timer-bar" id="host-timer-bar" style="width:100%"></div>
+          </div>
+          <span class="timer-number" id="host-timer-num">15</span>
+        </div>
+
+        <div class="question-text" id="host-q-text" style="font-size:1.1rem;margin-bottom:12px"></div>
+
+        <p id="host-correct-hint" class="text-muted" style="font-size:.9rem;margin-bottom:10px"></p>
+
+        <p class="answered-count" id="host-answered-count">0 / 0 respondieron</p>
+        <button class="btn btn-secondary btn-sm" id="btn-force-end" style="margin-top:10px;width:100%">
+          Terminar Pregunta Ahora
+        </button>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <p class="section-title">Respuestas en vivo</p>
+        <ul class="stats-list" id="host-stats-list"></ul>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ RESULTADOS ══ -->
+<div class="screen" id="screen-results">
+  <div class="host-container">
+    <div class="card" style="margin-bottom:14px">
+      <p class="section-title">Resultados — <span id="res-q-label"></span></p>
+
+      <div id="res-correct-callout" style="margin-bottom:12px;padding:12px 16px;background:rgba(38,137,12,.15);border:1px solid var(--correct);border-radius:10px;">
+        <strong style="color:#4cdc5b">Respuesta correcta:</strong>
+        <span id="res-correct-text"></span>
+      </div>
+
+      <p class="explanation" id="res-explanation" style="margin:0 0 14px"></p>
+
+      <p class="section-title">Distribución de respuestas</p>
+      <ul class="stats-list" id="res-stats-list"></ul>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <p class="section-title">Marcador</p>
+      <div class="leaderboard" id="res-leaderboard"></div>
+    </div>
+
+    <!-- Auto-advance countdown -->
+    <div style="text-align:center;margin-bottom:12px">
+      <p style="font-size:1.1rem;color:var(--muted)">
+        Siguiente pregunta en <strong style="color:var(--accent)" id="advance-countdown">7</strong>s…
+      </p>
+      <div class="timer-track" style="max-width:300px;margin:8px auto 0">
+        <div class="timer-bar" id="advance-bar" style="width:100%"></div>
+      </div>
+    </div>
+    <button class="btn btn-danger" id="btn-end-quiz-early" style="width:100%">Terminar Quiz</button>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════ FINAL ══ -->
+<div class="screen" id="screen-final">
+  <div class="host-container">
+    <p class="logo" style="font-size:2rem;margin-bottom:12px">₿<span>Quiz</span></p>
+
+    <div class="winner-card" style="margin-bottom:16px">
+      <p style="font-size:2rem;margin-bottom:6px">🏆</p>
+      <p class="winner-name" id="final-winner-name"></p>
+      <p class="winner-sats" id="final-winner-sats"></p>
+
+      <!-- Factura Lightning (si está configurada) -->
+      <div id="lightning-invoice-section" style="display:none">
+        <p class="section-title" style="margin-bottom:8px">Factura Lightning</p>
+        <div class="qr-wrap" id="invoice-qr-wrap" style="display:none;margin:0 auto 10px">
+          <img id="invoice-qr-img" src="" alt="QR Factura" width="220" height="220" />
+        </div>
+        <div class="invoice-box" id="invoice-text"></div>
+        <button class="btn btn-secondary btn-sm" id="btn-copy-invoice" style="margin-top:8px">
+          Copiar Factura
+        </button>
+      </div>
+
+      <!-- Modo manual (sin Lightning) -->
+      <div id="manual-payout-section" style="display:none">
+        <p style="color:var(--muted);font-size:.9rem;margin-bottom:6px">
+          Lightning no configurado — paga manualmente:
+        </p>
+        <p style="font-size:1.3rem;font-weight:900;color:var(--accent)" id="manual-sats"></p>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:14px">
+      <p class="section-title">Clasificación Final</p>
+      <div class="leaderboard" id="final-leaderboard"></div>
+    </div>
+
+    <button class="btn btn-secondary" id="btn-restart">Nuevo Quiz</button>
+  </div>
+</div>
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="client.js"></script>
+<script>
+(function () {
+  "use strict";
+
+  const socket = io();
+  let cancelTimer = null;
+  let currentOptions = [];
+
+  // Obtener info del servidor al cargar
+  fetch("/api/info")
+    .then(r => r.json())
+    .then(info => {
+      const labels = {
+        nwc:    "⚡ NWC conectado — ¡el ganador recibe sats reales!",
+        lnd:    "⚡ LND conectado — ¡el ganador recibe sats reales!",
+        manual: "Lightning no configurado — modo de pago manual"
+      };
+      document.getElementById("lightning-status").textContent =
+        labels[info.lightningMethod] || labels.manual;
+    })
+    .catch(() => {});
+
+  // ── Pantalla de inicio ────────────────────────────────────────────────
+  document.getElementById("btn-create-room").addEventListener("click", () => {
+    socket.emit("create_room");
+  });
+
+  // ── Sala de espera ────────────────────────────────────────────────────
+  document.getElementById("btn-start-quiz").addEventListener("click", () => {
+    socket.emit("start_quiz");
+    document.getElementById("btn-start-quiz").disabled = true;
+  });
+
+  // ── Pantalla de pregunta ──────────────────────────────────────────────
+  document.getElementById("btn-force-end").addEventListener("click", () => {
+    socket.emit("force_end_question");
+  });
+
+  // ── Pantalla de resultados ────────────────────────────────────────────
+  document.getElementById("btn-end-quiz-early").addEventListener("click", () => {
+    if (confirm("¿Terminar el quiz ahora y mostrar los resultados finales?")) {
+      socket.emit("end_quiz");
+    }
+  });
+
+  // ── Pantalla final ────────────────────────────────────────────────────
+  document.getElementById("btn-restart").addEventListener("click", () => {
+    socket.emit("restart_quiz");
+  });
+
+  document.getElementById("btn-copy-invoice").addEventListener("click", () => {
+    const txt = document.getElementById("invoice-text").textContent;
+    navigator.clipboard.writeText(txt).then(() => {
+      document.getElementById("btn-copy-invoice").textContent = "¡Copiado!";
+      setTimeout(() => {
+        document.getElementById("btn-copy-invoice").textContent = "Copiar Factura";
+      }, 2000);
+    });
+  });
+
+  // ── Eventos Socket.io ─────────────────────────────────────────────────
+
+  socket.on("room_created", ({ roomCode, joinUrl }) => {
+    document.getElementById("lobby-room-code").textContent = roomCode;
+    document.getElementById("lobby-join-url").textContent = joinUrl;
+    document.getElementById("lobby-qr-img").src = `/api/qr?url=${encodeURIComponent(joinUrl)}`;
+    // Resetear lista de jugadores al reiniciar
+    document.getElementById("player-list").innerHTML =
+      '<em class="text-muted" style="font-size:.88rem">Esperando participantes…</em>';
+    document.getElementById("player-count").textContent = "0";
+    document.getElementById("btn-start-quiz").disabled = true;
+    document.getElementById("lobby-hint").textContent = "Se necesita al menos 1 jugador";
+    showScreen("screen-lobby");
+  });
+
+  socket.on("player_joined", ({ players }) => {
+    const count = players.length;
+    document.getElementById("player-count").textContent = count;
+    document.getElementById("player-list").innerHTML = players
+      .map(p => `<span class="player-chip">${esc(p.nickname)}</span>`)
+      .join("");
+    document.getElementById("btn-start-quiz").disabled = count === 0;
+    document.getElementById("lobby-hint").textContent = count === 0
+      ? "Se necesita al menos 1 jugador"
+      : `${count} jugador${count !== 1 ? "es" : ""} listo${count !== 1 ? "s" : ""}`;
+  });
+
+  socket.on("quiz_started", () => {
+    setTimeout(() => socket.emit("start_question"), 1000);
+  });
+
+  socket.on("quiz_error", ({ message }) => {
+    alert(message);
+    document.getElementById("btn-start-quiz").disabled = false;
+  });
+
+  socket.on("question_started", ({ index, total, text, options, correct, explanation, timeLimit }) => {
+    currentOptions = options;
+
+    document.getElementById("host-q-counter").textContent = `Pregunta ${index + 1} de ${total}`;
+    document.getElementById("host-q-text").textContent = text;
+    document.getElementById("host-correct-hint").innerHTML =
+      `Correcta: <strong style="color:#4cdc5b">${esc(options[correct])}</strong>`;
+    document.getElementById("host-answered-count").textContent = "0 / ? respondieron";
+
+    renderStatsInto("host-stats-list",
+      options.map((opt, i) => ({ index: i, label: opt, count: 0, percentage: 0 })),
+      correct
+    );
+
+    showScreen("screen-question");
+
+    if (cancelTimer) cancelTimer();
+    cancelTimer = startCountdown(timeLimit, () => {}, "host-timer-bar", "host-timer-num");
+  });
+
+  socket.on("answer_stats", ({ stats, answeredCount, totalPlayers }) => {
+    document.getElementById("host-answered-count").textContent =
+      `${answeredCount} / ${totalPlayers} respondieron`;
+    renderStatsInto("host-stats-list",
+      stats.map((s, i) => ({ ...s, label: currentOptions[i] || `Opción ${i + 1}` })),
+      -1
+    );
+  });
+
+  socket.on("question_ended", ({ correct, explanation, stats, leaderboard, questionIndex, isLastQuestion }) => {
+    if (cancelTimer) { cancelTimer(); cancelTimer = null; }
+
+    document.getElementById("res-q-label").textContent = `Pregunta ${questionIndex + 1}`;
+    document.getElementById("res-correct-text").textContent = " " + (currentOptions[correct] || "");
+    document.getElementById("res-explanation").textContent = explanation || "";
+
+    renderStatsInto("res-stats-list",
+      stats.map((s, i) => ({ ...s, label: currentOptions[i] || `Opción ${i + 1}` })),
+      correct
+    );
+    document.getElementById("res-leaderboard").innerHTML = buildLeaderboard(leaderboard);
+
+    // Hide end button on last question (quiz ends automatically)
+    document.getElementById("btn-end-quiz-early").style.display = isLastQuestion ? "none" : "";
+
+    showScreen("screen-results");
+  });
+
+  // Auto-advance countdown display on the results screen
+  let cancelAdvance = null;
+  socket.on("auto_advance", ({ seconds }) => {
+    if (cancelAdvance) cancelAdvance();
+    cancelAdvance = startCountdown(
+      seconds,
+      () => {},
+      "advance-bar",
+      "advance-countdown"
+    );
+  });
+
+  socket.on("quiz_ended", ({ leaderboard, rewardInfo }) => {
+    const winner = leaderboard[0];
+    document.getElementById("final-winner-name").textContent =
+      winner ? "🥇 " + winner.nickname : "Sin jugadores";
+    document.getElementById("final-winner-sats").textContent =
+      winner ? `${fmt(winner.score)} puntos` : "";
+
+    if (rewardInfo) {
+      if (rewardInfo.success && rewardInfo.paymentRequest) {
+        document.getElementById("lightning-invoice-section").style.display = "block";
+        document.getElementById("invoice-text").textContent = rewardInfo.paymentRequest;
+        document.getElementById("invoice-qr-img").src =
+          `/api/qr?url=${encodeURIComponent(rewardInfo.paymentRequest)}`;
+        document.getElementById("invoice-qr-wrap").style.display = "block";
+        document.getElementById("final-winner-sats").textContent +=
+          ` — ${fmt(rewardInfo.satAmount)} sats`;
+      } else if (rewardInfo.manual) {
+        document.getElementById("manual-payout-section").style.display = "block";
+        document.getElementById("manual-sats").textContent =
+          `Enviar ${fmt(rewardInfo.satAmount)} sats manualmente`;
+        document.getElementById("final-winner-sats").textContent +=
+          ` — ${fmt(rewardInfo.satAmount)} sats a pagar`;
+      }
+    }
+
+    document.getElementById("final-leaderboard").innerHTML = buildLeaderboard(leaderboard);
+    showScreen("screen-final");
+  });
+
+  // ── Renderizado de estadísticas ───────────────────────────────────────
+
+  function renderStatsInto(listId, statsArr, correctIndex) {
+    document.getElementById(listId).innerHTML = statsArr.map(s => `
+      <li class="stat-row">
+        <span class="stat-label">
+          ${esc(s.label.length > 22 ? s.label.slice(0, 22) + "…" : s.label)}
+          ${s.index === correctIndex ? '<span class="correct-pill">✓</span>' : ""}
+        </span>
+        <div class="stat-track">
+          <div class="stat-fill ans-${s.index}" style="width:${s.percentage}%"></div>
+        </div>
+        <span class="stat-pct">${s.percentage}%</span>
+      </li>`).join("");
+  }
+})();
+</script>
+</body>
+</html>
