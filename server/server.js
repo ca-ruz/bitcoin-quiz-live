@@ -144,13 +144,14 @@ io.on("connection", (socket) => {
       quizEngine.removeRoom(room.code);
     }
     // Create a new room for the same host
-    const newCode = quizEngine.createRoom(socket.id);
+    const roomQuestions = pickQuestions();
+    const newCode = quizEngine.createRoom(socket.id, roomQuestions);
     socket.join(newCode);
     const joinUrl = `${BASE_URL}/?room=${newCode}`;
     socket.emit("room_created", {
       roomCode: newCode,
       joinUrl,
-      totalQuestions: questions.length,
+      totalQuestions: roomQuestions.length,
       timeLimit: TIME_LIMIT
     });
     console.log(`[Room] Restarted → ${newCode}`);
