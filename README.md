@@ -24,9 +24,10 @@ el ganador recibe sats a través de Lightning Network.
 
 ## Inicio rápido
 
-### 1. Instalar dependencias
+### 1. Clonar e Instalar dependencias
 
 ```bash
+git clone https://github.com/ca-ruz/bitcoin-quiz-live
 cd bitcoin-quiz-live
 npm install
 ```
