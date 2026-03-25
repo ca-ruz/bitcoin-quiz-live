@@ -39,7 +39,7 @@ function buildLeaderboard(leaderboard, highlightId) {
       const isMe = entry.id === highlightId;
       const rank = medals[i] || `#${i + 1}`;
       return `
-        <div class="lb-row${isMe ? ' style="background:rgba(247,147,26,.15);border-color:var(--accent)"' : ""}">
+        <div class="lb-row"${isMe ? ' style="background:rgba(247,147,26,.15);border-color:var(--accent)"' : ""}>
           <span class="lb-rank">${rank}</span>
           <span class="lb-name">${esc(entry.nickname)}${isMe ? " <em style='color:var(--accent);font-style:normal'>(tú)</em>" : ""}</span>
           <span class="lb-score">${fmt(entry.score)}</span>

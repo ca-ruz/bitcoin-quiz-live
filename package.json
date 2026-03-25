@@ -5,7 +5,8 @@
   "main": "server/server.js",
   "scripts": {
     "start": "node server/server.js",
-    "dev": "nodemon server/server.js"
+    "dev": "nodemon server/server.js",
+    "test": "node --test tests/quizEngine.test.js tests/questions.test.js tests/lightning.test.js"
   },
   "license": "GPL-3.0-or-later",
   "dependencies": {

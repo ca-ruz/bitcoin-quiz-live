@@ -178,7 +178,11 @@
     document.getElementById("btn-join").disabled = false;
   });
 
-  socket.on("question_started", ({ index, total, text, options, timeLimit }) => {
+  function disableAnswerButtons() {
+    document.querySelectorAll(".answer-btn").forEach(btn => { btn.disabled = true; });
+  }
+
+  socket.on("question_started", ({ index, total, text, options, timeLimit, alreadyAnswered }) => {
     document.getElementById("answered-overlay").style.display = "none";
     document.getElementById("q-counter").textContent = `Pregunta ${index + 1} de ${total}`;
     document.getElementById("q-text").textContent = text;
@@ -194,6 +198,12 @@
     });
 
     showScreen("screen-question");
+
+    // Rejoining player already submitted an answer — show the overlay and lock buttons
+    if (alreadyAnswered) {
+      disableAnswerButtons();
+      document.getElementById("answered-overlay").style.display = "block";
+    }
 
     if (cancelTimer) cancelTimer();
     cancelTimer = startCountdown(timeLimit, () => {

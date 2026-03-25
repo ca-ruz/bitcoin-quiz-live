@@ -24,7 +24,31 @@ function getLocalIP() {
 
 const quizEngine = require("./quizEngine");
 const lightning = require("./lightning");
-const allQuestions = require("../data/questions");
+
+// Load questions from one or more categories defined in CATEGORIES env var.
+// Example: CATEGORIES=bitcoin  or  CATEGORIES=lightning,channels,lsp
+// Falls back to the "bitcoin" (general/beginner) category if not set.
+function loadQuestions() {
+  const names = (process.env.CATEGORIES || "bitcoin")
+    .split(",").map(s => s.trim().toLowerCase()).filter(Boolean);
+  const all = [];
+  for (const name of names) {
+    try {
+      const qs = require(`../data/categories/${name}`);
+      all.push(...qs);
+      console.log(`[Questions] Loaded category "${name}" (${qs.length} questions)`);
+    } catch {
+      console.warn(`[Questions] Category "${name}" not found — skipping.`);
+    }
+  }
+  if (all.length === 0) {
+    console.warn("[Questions] No categories loaded — falling back to bitcoin.");
+    return require("../data/categories/bitcoin");
+  }
+  return all;
+}
+
+const allQuestions = loadQuestions();
 
 const app = express();
 const server = http.createServer(app);
@@ -32,15 +56,33 @@ const io = new Server(server);
 
 const PORT = parseInt(process.env.PORT) || 3000;
 const BASE_URL = process.env.BASE_URL || `http://${getLocalIP()}:${PORT}`;
-const TIME_LIMIT = parseInt(process.env.QUESTION_TIME_LIMIT) || 15; // seconds
+const TIME_LIMIT = parseInt(process.env.QUESTION_TIME_LIMIT) || 21; // seconds (default 21)
 const SAT_PER_POINT = parseInt(process.env.SAT_PER_POINT) || 1;
-const RESULTS_DELAY = 8; // seconds to display results before auto-advancing
+const RESULTS_DELAY = parseInt(process.env.RESULTS_DELAY) || 8; // seconds to display results before auto-advancing
 const QUESTION_COUNT = parseInt(process.env.QUESTION_COUNT) || allQuestions.length;
 
-// Pick a random subset of questions for each new room (no repeats)
+// Shuffle the answer options for a question and update the correct index to match.
+// This prevents players from noticing that the correct answer is always the longest
+// or always in the same position.
+function shuffleOptions(question) {
+  const indices = question.options.map((_, i) => i);
+  for (let i = indices.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [indices[i], indices[j]] = [indices[j], indices[i]];
+  }
+  return {
+    ...question,
+    options: indices.map(i => question.options[i]),
+    correct: indices.indexOf(question.correct)
+  };
+}
+
+// Pick a random subset of questions for each new room (no repeats).
+// Options within each question are also shuffled so the correct answer
+// appears in a random position every game.
 function pickQuestions() {
   const shuffled = [...allQuestions].sort(() => Math.random() - 0.5);
-  return shuffled.slice(0, Math.min(QUESTION_COUNT, allQuestions.length));
+  return shuffled.slice(0, Math.min(QUESTION_COUNT, allQuestions.length)).map(shuffleOptions);
 }
 
 // ─── Static files ────────────────────────────────────────────────────────────
@@ -195,6 +237,29 @@ io.on("connection", (socket) => {
 
     // Tell the host someone joined so the player list updates
     const room = quizEngine.getRoom(roomCode);
+
+    // If the player is rejoining mid-game, push the current game state so they
+    // don't get stuck on the waiting screen.
+    if (result.rejoined && room) {
+      if (room.state === "question") {
+        const q = room.questions[room.currentQuestionIndex];
+        const elapsed = (Date.now() - room.questionStartTime) / 1000;
+        const remaining = Math.max(1, Math.ceil(TIME_LIMIT - elapsed));
+        socket.emit("question_started", {
+          index: room.currentQuestionIndex,
+          total: room.questions.length,
+          text: q.text,
+          options: q.options,
+          timeLimit: remaining,
+          alreadyAnswered: room.currentAnswers.has(result.playerId)
+        });
+      } else if (room.state === "finished") {
+        const leaderboard = quizEngine.getLeaderboard(roomCode);
+        const winner = leaderboard[0];
+        socket.emit("quiz_ended", { leaderboard, winnerNickname: winner?.nickname });
+      }
+      // "lobby" or "results" → screen-waiting is the right place to be
+    }
     if (room) {
       io.to(room.hostSocketId).emit("player_joined", {
         players: quizEngine.getPlayers(roomCode).map(p => ({
@@ -243,10 +308,16 @@ io.on("connection", (socket) => {
       totalPlayers: room.players.size
     });
 
-    // End question early if: first correct answer OR every player has now answered
+    // End question early if: first correct answer OR every player has now answered.
+    // Store the timer reference so rapid simultaneous answers don't stack multiple timers.
     if (answerIndex === question.correct || quizEngine.allPlayersAnswered(room.code)) {
-      clearTimeout(room.questionTimer);
-      setTimeout(() => endQuestion(room.code), 1200); // brief pause for drama
+      if (!room.endTimer) {
+        clearTimeout(room.questionTimer);
+        room.endTimer = setTimeout(() => {
+          room.endTimer = null;
+          endQuestion(room.code);
+        }, 1200); // brief pause for drama
+      }
     }
   });
 

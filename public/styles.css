@@ -2,23 +2,23 @@
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:        #0f0f1a;
-  --card:      #1a1a2e;
-  --card2:     #16213e;
-  --accent:    #f7931a;   /* Bitcoin orange */
-  --accent2:   #ffb347;
-  --text:      #f0f0f0;
-  --muted:     #8899aa;
-  --border:    #2a2a4a;
+  --bg:        #0b0813;
+  --card:      #150f24;
+  --card2:     #0f0a1e;
+  --accent:    #f72585;   /* neon pink   */
+  --accent2:   #b5179e;   /* deep magenta */
+  --text:      #e8e0ff;
+  --muted:     #7b6fa8;
+  --border:    #2a1a4a;
 
-  /* Answer button colours (Kahoot-style) */
-  --ans-0:     #e21b3c;   /* red   */
-  --ans-1:     #1368ce;   /* blue  */
-  --ans-2:     #d89e00;   /* gold  */
-  --ans-3:     #26890c;   /* green */
+  /* Answer button colours */
+  --ans-0:     #f72585;   /* neon pink  */
+  --ans-1:     #4cc9f0;   /* neon cyan  */
+  --ans-2:     #7209b7;   /* neon purple */
+  --ans-3:     #4361ee;   /* electric blue */
 
-  --correct:   #26890c;
-  --incorrect: #e21b3c;
+  --correct:   #06ffa5;
+  --incorrect: #f72585;
 
   --radius:    14px;
   --shadow:    0 4px 24px rgba(0,0,0,.45);
@@ -32,6 +32,10 @@ html, body {
   height: 100%;
   font-family: "Segoe UI", system-ui, sans-serif;
   background: var(--bg);
+  background-image:
+    linear-gradient(rgba(247,37,133,.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(247,37,133,.03) 1px, transparent 1px);
+  background-size: 40px 40px;
   color: var(--text);
   -webkit-tap-highlight-color: transparent;
 }
@@ -48,6 +52,7 @@ html, body {
   letter-spacing: -1px;
   text-align: center;
   margin-bottom: 4px;
+  text-shadow: 0 0 20px rgba(247,37,133,.6), 0 0 40px rgba(247,37,133,.3);
 }
 .logo span { color: var(--text); }
 .tagline { color: var(--muted); font-size: .95rem; text-align: center; margin-bottom: 28px; }
@@ -60,7 +65,7 @@ html, body {
   padding: 28px 24px;
   width: 100%;
   max-width: 480px;
-  box-shadow: var(--shadow);
+  box-shadow: var(--shadow), 0 0 30px rgba(247,37,133,.07), inset 0 1px 0 rgba(255,255,255,.04);
 }
 
 /* ─── Form elements ────────────────────────────────────────────────────────── */
@@ -78,7 +83,7 @@ input[type="text"] {
   outline: none;
   transition: border-color .2s;
 }
-input[type="text"]:focus { border-color: var(--accent); }
+input[type="text"]:focus { border-color: var(--accent); box-shadow: 0 0 12px rgba(247,37,133,.3); }
 input[type="text"]::placeholder { color: var(--muted); }
 
 /* ─── Buttons ──────────────────────────────────────────────────────────────── */
@@ -98,7 +103,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; }
 
 .btn-primary { background: var(--accent); color: #000; }
-.btn-primary:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(247,147,26,.35); }
+.btn-primary:hover:not(:disabled) { box-shadow: 0 0 0 3px rgba(247,37,133,.35); }
 
 .btn-secondary { background: var(--card2); color: var(--text); border: 2px solid var(--border); margin-top: 10px; }
 .btn-secondary:hover:not(:disabled) { border-color: var(--accent); }
@@ -136,10 +141,10 @@ input[type="text"]::placeholder { color: var(--muted); }
 .answer-btn:active { transform: scale(.96); }
 .answer-btn:disabled { cursor: default; }
 
-.answer-btn.ans-0 { background: var(--ans-0); }
-.answer-btn.ans-1 { background: var(--ans-1); }
-.answer-btn.ans-2 { background: var(--ans-2); color: #111; }
-.answer-btn.ans-3 { background: var(--ans-3); }
+.answer-btn.ans-0 { background: var(--ans-0); box-shadow: 0 4px 20px rgba(247,37,133,.4); }
+.answer-btn.ans-1 { background: var(--ans-1); box-shadow: 0 4px 20px rgba(76,201,240,.4); color: #0b0813; }
+.answer-btn.ans-2 { background: var(--ans-2); box-shadow: 0 4px 20px rgba(114,9,183,.4); }
+.answer-btn.ans-3 { background: var(--ans-3); box-shadow: 0 4px 20px rgba(67,97,238,.4); }
 
 .answer-btn .icon { font-size: 1.6rem; flex-shrink: 0; }
 
@@ -184,7 +189,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   border-radius: 99px;
   transition: width .1s linear, background .4s;
 }
-.timer-bar.warning { background: #e8a020; }
+.timer-bar.warning { background: #b5179e; }
 .timer-bar.danger  { background: var(--incorrect); }
 
 /* ─── Question display ─────────────────────────────────────────────────────── */
@@ -220,7 +225,7 @@ input[type="text"]::placeholder { color: var(--muted); }
   text-align: center;
   margin-bottom: 4px;
 }
-.result-label.correct { color: #4cdc5b; }
+.result-label.correct { color: #06ffa5; }
 .result-label.incorrect { color: var(--incorrect); }
 
 .points-earned {
@@ -359,13 +364,13 @@ input[type="text"]::placeholder { color: var(--muted); }
   text-align: center;
   letter-spacing: 2px;
   color: var(--accent);
-  text-shadow: 0 0 40px rgba(247,147,26,.6), 0 2px 0 #000;
+  text-shadow: 0 0 40px rgba(247,37,133,.7), 0 2px 0 #000;
   margin-bottom: 12px;
   animation: glow 2s ease-in-out infinite alternate;
 }
 @keyframes glow {
-  from { text-shadow: 0 0 20px rgba(247,147,26,.5), 0 2px 0 #000; }
-  to   { text-shadow: 0 0 60px rgba(247,147,26,.9), 0 0 20px rgba(255,179,71,.6), 0 2px 0 #000; }
+  from { text-shadow: 0 0 20px rgba(247,37,133,.6), 0 2px 0 #000; }
+  to   { text-shadow: 0 0 60px rgba(247,37,133,1), 0 0 30px rgba(76,201,240,.5), 0 2px 0 #000; }
 }
 .winner-sub {
   text-align: center;
@@ -375,8 +380,8 @@ input[type="text"]::placeholder { color: var(--muted); }
   margin-bottom: 20px;
 }
 #final-winner-section {
-  background: linear-gradient(160deg, rgba(247,147,26,.12) 0%, rgba(255,179,71,.06) 100%);
-  border: 2px solid rgba(247,147,26,.4);
+  background: linear-gradient(160deg, rgba(247,37,133,.12) 0%, rgba(76,201,240,.06) 100%);
+  border: 2px solid rgba(247,37,133,.4);
   border-radius: var(--radius);
   padding: 28px 20px 20px;
   margin-bottom: 16px;
@@ -384,7 +389,7 @@ input[type="text"]::placeholder { color: var(--muted); }
 
 /* ─── Host winner card ──────────────────────────────────────────────────────── */
 .winner-card {
-  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  background: linear-gradient(135deg, #150f24, #0f0a1e);
   border: 2px solid var(--accent);
   border-radius: var(--radius);
   padding: 24px;
