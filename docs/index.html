@@ -135,7 +135,7 @@
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
       gap: 14px;
-      box-shadow: 0 0 40px rgba(57,255,20,.06), inset 0 1px 0 rgba(255,255,255,.03);
+      box-shadow: 0 0 40px rgba(176,68,255,.1), inset 0 1px 0 rgba(255,255,255,.03);
     }
     .demo-card {
       background: var(--bg);
@@ -143,12 +143,14 @@
       border-radius: 12px;
       padding: 18px 16px;
       text-align: center;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .2s, box-shadow .2s, transform .15s;
       box-shadow: 0 0 18px rgba(57,255,20,.1);
     }
     .demo-card:hover {
       border-color: rgba(57,255,20,.55);
       box-shadow: 0 0 28px rgba(57,255,20,.22);
+      transform: translateY(-3px);
+      filter: brightness(1.12);
     }
     .demo-card .icon { font-size: 2rem; margin-bottom: 8px; }
     .demo-card p { font-size: .88rem; color: rgba(57,255,20,.7); }
@@ -172,12 +174,14 @@
       border: 1px solid rgba(76,201,240,.25);
       border-radius: 14px;
       padding: 22px 20px;
-      transition: border-color .2s, box-shadow .2s;
+      transition: border-color .2s, box-shadow .2s, transform .15s;
       box-shadow: 0 0 22px rgba(76,201,240,.1);
     }
     .feature:hover {
       border-color: rgba(76,201,240,.55);
       box-shadow: 0 0 32px rgba(76,201,240,.22);
+      transform: translateY(-3px);
+      filter: brightness(1.12);
     }
     .feature:active {
       border-color: rgba(76,201,240,.85);
@@ -211,7 +215,7 @@
       color: rgba(76,201,240,.55);
       font-size: .88rem;
       box-shadow: 0 0 16px rgba(76,201,240,.08);
-      transition: border-color .25s, box-shadow .25s, color .25s;
+      transition: border-color .25s, box-shadow .25s, color .25s, transform .15s;
     }
     pre {
       padding: 18px 20px; overflow-x: auto; margin-top: 10px; line-height: 1.7;
@@ -221,6 +225,7 @@
       border-color: rgba(76,201,240,.6);
       box-shadow: 0 0 26px rgba(76,201,240,.25);
       color: var(--blue);
+      transform: translateY(-2px);
     }
     pre.copied {
       border-color: rgba(57,255,20,.65);
@@ -250,11 +255,18 @@
       border-radius: 14px;
       padding: 22px 20px;
     }
-    .ln-card { transition: border-color .2s, box-shadow .2s; cursor: pointer; }
-    .ln-card.recommended { border-color: var(--border); }
+    .ln-card {
+      transition: border-color .2s, box-shadow .2s, transform .15s, filter .2s;
+      cursor: pointer;
+      border-color: rgba(255,119,0,.2);
+      box-shadow: 0 0 16px rgba(255,119,0,.08);
+    }
+    .ln-card.recommended { border-color: rgba(255,119,0,.2); }
     .ln-card:hover {
       border-color: var(--orange);
-      box-shadow: 0 0 24px rgba(255,119,0,.25);
+      box-shadow: 0 0 28px rgba(255,119,0,.3);
+      transform: translateY(-3px);
+      filter: brightness(1.12);
     }
     .ln-card:active {
       border-color: rgba(255,119,0,.9);
@@ -268,7 +280,7 @@
       margin-bottom: 10px;
       box-shadow: 0 0 12px rgba(255,119,0,.5);
     }
-    .ln-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: var(--accent); }
+    .ln-card h3 { font-size: 1rem; font-weight: 700; margin-bottom: 6px; color: var(--orange); }
     .ln-card p { font-size: .85rem; color: var(--text); line-height: 1.5; }
     .ln-card ul { margin-top: 8px; padding-left: 18px; font-size: .85rem; color: var(--text); }
     .ln-card ul li { margin-bottom: 3px; }
@@ -363,7 +375,7 @@
     <a href="#features">Características</a>
     <a href="#install">Instalación</a>
     <a href="#lightning">Lightning</a>
-    <a href="https://github.com/ca-ruz/bitcoin-quiz-live">GitHub</a>
+    <a href="https://github.com/ca-ruz/bitcoin-quiz-live" target="_blank" rel="noopener noreferrer">GitHub</a>
   </div>
 </nav>
 
@@ -376,7 +388,7 @@
     responden preguntas sobre Bitcoin y el ganador recibe sats por Lightning Network.
   </p>
   <div class="hero-buttons">
-    <a class="btn btn-primary" href="https://github.com/ca-ruz/bitcoin-quiz-live">
+    <a class="btn btn-primary" href="https://github.com/ca-ruz/bitcoin-quiz-live" target="_blank" rel="noopener noreferrer">
       Ver en GitHub
     </a>
     <a class="btn btn-outline" href="#install">
@@ -550,7 +562,7 @@ LND_MACAROON=abc123...</pre></div>
     const isFeature = card.classList.contains('feature');
     const glowRgb   = isLn ? '255,119,0' : isFeature ? '76,201,240' : '57,255,20';
     const textColor  = isFeature ? 'rgba(76,201,240,.85)' : isLn ? 'var(--text)' : 'rgba(57,255,20,.7)';
-    const titleColor = isFeature ? 'var(--purple)' : isLn ? 'var(--accent)' : 'var(--text)';
+    const titleColor = isFeature ? 'var(--purple)' : isLn ? 'var(--orange)' : 'var(--text)';
 
     const icon  = card.querySelector('.icon')?.innerText || '';
     const badge = card.querySelector('.ln-badge')?.innerText || '';
@@ -562,7 +574,7 @@ LND_MACAROON=abc123...</pre></div>
     const overlay = document.createElement('div');
     overlay.className = 'card-modal-overlay';
     overlay.innerHTML = `
-      <div class="card-modal-box" style="border-color:rgba(${glowRgb},.45);box-shadow:0 0 60px rgba(${glowRgb},.18),0 0 120px rgba(${glowRgb},.07);${isLn ? '' : ''}">
+      <div class="card-modal-box" style="border-color:rgba(${glowRgb},.55);box-shadow:0 0 60px rgba(${glowRgb},${isLn ? '.45' : '.18'}),0 0 120px rgba(${glowRgb},${isLn ? '.2' : '.07'})">
         ${icon  ? `<div class="modal-icon">${icon}</div>` : ''}
         ${badge ? `<div class="modal-badge">${badge}</div>` : ''}
         ${title ? `<div class="modal-title" style="color:${titleColor}">${title}</div>` : ''}
