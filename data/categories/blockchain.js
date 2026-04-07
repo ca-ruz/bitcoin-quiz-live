@@ -241,7 +241,7 @@ const questions = [
       en: [
         "An international regulation prohibiting modification of historical records",
         "Encryption of blocks with the protocol creator's private key",
-        "The hash chaining that invalidates the entire chain if a block is altered",
+        "Hash chaining that invalidates every later block when one is altered",
         "Automatic backups on thousands of decentralized servers"
       ]
     },

@@ -114,7 +114,7 @@ const questions = [
         "Un protocolo que garantiza la apertura automática de canales nuevos"
       ],
       en: [
-        "A node that watches channels and acts if it detects a fraud transaction",
+        "A node that monitors channels and acts when it detects fraud",
         "An analytics service that measures global Lightning network activity",
         "A channel type with higher capacity and lower routing fees",
         "A protocol that guarantees automatic opening of new channels"
