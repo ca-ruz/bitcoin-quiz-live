@@ -65,14 +65,18 @@ const QUESTION_COUNT = parseInt(process.env.QUESTION_COUNT) || allQuestions.leng
 // This prevents players from noticing that the correct answer is always the longest
 // or always in the same position.
 function shuffleOptions(question) {
-  const indices = question.options.map((_, i) => i);
+  const count = question.options.es.length;
+  const indices = Array.from({ length: count }, (_, i) => i);
   for (let i = indices.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [indices[i], indices[j]] = [indices[j], indices[i]];
   }
   return {
     ...question,
-    options: indices.map(i => question.options[i]),
+    options: {
+      es: indices.map(i => question.options.es[i]),
+      en: indices.map(i => question.options.en[i])
+    },
     correct: indices.indexOf(question.correct)
   };
 }
@@ -285,7 +289,7 @@ io.on("connection", (socket) => {
     if (
       typeof answerIndex !== "number" ||
       answerIndex < 0 ||
-      answerIndex >= question.options.length
+      answerIndex >= question.options.es.length
     ) {
       socket.emit("answer_error", { message: "Respuesta inválida." });
       return;
@@ -301,7 +305,7 @@ io.on("connection", (socket) => {
     socket.emit("answer_received");
 
     // Push live stats to the host display
-    const stats = quizEngine.getAnswerStats(room.code, room.questions[room.currentQuestionIndex].options.length);
+    const stats = quizEngine.getAnswerStats(room.code, room.questions[room.currentQuestionIndex].options.es.length);
     io.to(room.hostSocketId).emit("answer_stats", {
       stats,
       answeredCount: room.currentAnswers.size,
@@ -389,7 +393,7 @@ function endQuestion(roomCode) {
   const question = room.questions[room.currentQuestionIndex];
   const results = quizEngine.scoreQuestion(roomCode, question, TIME_LIMIT);
   const leaderboard = quizEngine.getLeaderboard(roomCode);
-  const stats = quizEngine.getAnswerStats(roomCode, question.options.length);
+  const stats = quizEngine.getAnswerStats(roomCode, question.options.es.length);
   const isLast = room.currentQuestionIndex >= room.questions.length - 1;
 
   const basePayload = {

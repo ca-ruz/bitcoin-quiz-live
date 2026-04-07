@@ -15,6 +15,8 @@ const categoryFiles = fs.readdirSync(CATEGORIES_DIR)
   .filter(f => f.endsWith(".js"))
   .sort();
 
+const LANGS = ["es", "en"];
+
 // ─── Per-category checks ───────────────────────────────────────────────────────
 
 for (const file of categoryFiles) {
@@ -28,57 +30,82 @@ for (const file of categoryFiles) {
       assert.ok(questions.length >= 5, `Expected ≥5 questions, got ${questions.length}`);
     });
 
-    test("exports questions with the required fields", () => {
+    test("exports questions with the required bilingual fields", () => {
       for (const [i, q] of questions.entries()) {
-        assert.ok(typeof q.text === "string" && q.text.trim().length > 0,
-          `Q${i + 1}: 'text' is missing or empty`);
-        assert.ok(Array.isArray(q.options),
-          `Q${i + 1}: 'options' is not an array`);
+        // text
+        assert.ok(q.text && typeof q.text === "object",
+          `Q${i + 1}: 'text' must be a bilingual object`);
+        for (const lang of LANGS) {
+          assert.ok(typeof q.text[lang] === "string" && q.text[lang].trim().length > 0,
+            `Q${i + 1}: 'text.${lang}' is missing or empty`);
+        }
+        // options
+        assert.ok(q.options && typeof q.options === "object" && !Array.isArray(q.options),
+          `Q${i + 1}: 'options' must be a bilingual object`);
+        for (const lang of LANGS) {
+          assert.ok(Array.isArray(q.options[lang]),
+            `Q${i + 1}: 'options.${lang}' is not an array`);
+        }
+        // correct
         assert.ok(typeof q.correct === "number",
           `Q${i + 1}: 'correct' is not a number`);
-        assert.ok(typeof q.explanation === "string" && q.explanation.trim().length > 0,
-          `Q${i + 1}: 'explanation' is missing or empty`);
+        // explanation
+        assert.ok(q.explanation && typeof q.explanation === "object",
+          `Q${i + 1}: 'explanation' must be a bilingual object`);
+        for (const lang of LANGS) {
+          assert.ok(typeof q.explanation[lang] === "string" && q.explanation[lang].trim().length > 0,
+            `Q${i + 1}: 'explanation.${lang}' is missing or empty`);
+        }
+        // both languages have the same number of options
+        assert.strictEqual(q.options.es.length, q.options.en.length,
+          `Q${i + 1}: options.es and options.en have different lengths`);
       }
     });
 
     test("every correct index is within the options array bounds", () => {
       for (const [i, q] of questions.entries()) {
         assert.ok(
-          q.correct >= 0 && q.correct < q.options.length,
-          `Q${i + 1} "${q.text.slice(0, 40)}": correct=${q.correct} is out of bounds (${q.options.length} options)`
+          q.correct >= 0 && q.correct < q.options.es.length,
+          `Q${i + 1} "${q.text.es.slice(0, 40)}": correct=${q.correct} is out of bounds (${q.options.es.length} options)`
         );
       }
     });
 
-    test("every question has at least 2 non-empty options", () => {
+    test("every question has at least 2 non-empty options in each language", () => {
       for (const [i, q] of questions.entries()) {
-        assert.ok(q.options.length >= 2,
-          `Q${i + 1}: only ${q.options.length} option(s)`);
-        for (const [j, opt] of q.options.entries()) {
-          assert.ok(typeof opt === "string" && opt.trim().length > 0,
-            `Q${i + 1} option[${j}] is empty or not a string`);
+        for (const lang of LANGS) {
+          assert.ok(q.options[lang].length >= 2,
+            `Q${i + 1} [${lang}]: only ${q.options[lang].length} option(s)`);
+          for (const [j, opt] of q.options[lang].entries()) {
+            assert.ok(typeof opt === "string" && opt.trim().length > 0,
+              `Q${i + 1} [${lang}] option[${j}] is empty or not a string`);
+          }
         }
       }
     });
 
-    test("correct answer is not more than 2 words longer than the longest wrong answer", () => {
+    test("correct answer is not more than 2 words longer than the longest wrong answer (both languages)", () => {
       for (const [i, q] of questions.entries()) {
-        const wordCounts = q.options.map(o => o.split(/\s+/).length);
-        const correctLen = wordCounts[q.correct];
-        const maxWrongLen = Math.max(...wordCounts.filter((_, j) => j !== q.correct));
-        const diff = correctLen - maxWrongLen;
-        assert.ok(diff <= 2,
-          `Q${i + 1} "${q.text.slice(0, 40)}": correct answer is ${diff} words longer than the longest wrong answer (makes it guessable by length)`
-        );
+        for (const lang of LANGS) {
+          const wordCounts = q.options[lang].map(o => o.split(/\s+/).length);
+          const correctLen = wordCounts[q.correct];
+          const maxWrongLen = Math.max(...wordCounts.filter((_, j) => j !== q.correct));
+          const diff = correctLen - maxWrongLen;
+          assert.ok(diff <= 2,
+            `Q${i + 1} [${lang}] "${q.text[lang].slice(0, 40)}": correct answer is ${diff} words longer than the longest wrong answer (makes it guessable by length)`
+          );
+        }
       }
     });
 
-    test("no duplicate option text within a question", () => {
+    test("no duplicate option text within a question (both languages)", () => {
       for (const [i, q] of questions.entries()) {
-        const lower = q.options.map(o => o.trim().toLowerCase());
-        const unique = new Set(lower);
-        assert.strictEqual(unique.size, lower.length,
-          `Q${i + 1}: has duplicate answer options`);
+        for (const lang of LANGS) {
+          const lower = q.options[lang].map(o => o.trim().toLowerCase());
+          const unique = new Set(lower);
+          assert.strictEqual(unique.size, lower.length,
+            `Q${i + 1} [${lang}]: has duplicate answer options`);
+        }
       }
     });
   });

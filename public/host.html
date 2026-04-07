@@ -261,7 +261,7 @@
     currentQuestion = text;
 
     document.getElementById("host-q-counter").textContent = t('question-counter', index + 1, total);
-    document.getElementById("host-q-text").textContent = text;
+    document.getElementById("host-q-text").textContent = text[currentLang];
     document.getElementById("host-answered-count").textContent = t('answered', 0, totalPlayers);
     document.getElementById("host-live-leaderboard").innerHTML = buildLeaderboard(lastLeaderboard);
 
@@ -279,9 +279,9 @@
     if (cancelTimer) { cancelTimer(); cancelTimer = null; }
 
     document.getElementById("res-q-label").textContent = questionIndex + 1;
-    document.getElementById("res-q-text").textContent = currentQuestion;
-    document.getElementById("res-correct-text").textContent = currentOptions[correct] || "";
-    document.getElementById("res-explanation").textContent = explanation || "";
+    document.getElementById("res-q-text").textContent = currentQuestion[currentLang];
+    document.getElementById("res-correct-text").textContent = currentOptions[currentLang]?.[correct] || "";
+    document.getElementById("res-explanation").textContent = explanation?.[currentLang] || "";
 
     lastLeaderboard = leaderboard;
     document.getElementById("res-leaderboard").innerHTML = buildLeaderboard(leaderboard);

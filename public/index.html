@@ -191,12 +191,12 @@
   socket.on("question_started", ({ index, total, text, options, timeLimit, alreadyAnswered }) => {
     document.getElementById("answered-overlay").style.display = "none";
     document.getElementById("q-counter").textContent = t('question-counter', index + 1, total);
-    document.getElementById("q-text").textContent = text;
+    document.getElementById("q-text").textContent = text[currentLang];
 
     const grid = document.getElementById("answers-grid");
     grid.innerHTML = "";
     const colorOrder = [0,1,2,3].sort(() => Math.random() - .5);
-    options.forEach((opt, i) => {
+    options[currentLang].forEach((opt, i) => {
       const btn = document.createElement("button");
       btn.className = `answer-btn ans-${colorOrder[i]}`;
       btn.innerHTML = `<span class="icon">${ANSWER_ICONS[i]}</span>${esc(opt)}`;
@@ -279,7 +279,7 @@
       document.getElementById("result-points").textContent = pointsText;
       document.getElementById("result-total").textContent =
         playerResult ? t('total-score', fmt(playerResult.totalScore)) : "";
-      document.getElementById("result-explanation").textContent = explanation || "";
+      document.getElementById("result-explanation").textContent = explanation?.[currentLang] || "";
       document.getElementById("result-leaderboard").innerHTML = buildLeaderboard(leaderboard, myPlayerId);
 
       showScreen("screen-result");
