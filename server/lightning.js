@@ -74,10 +74,17 @@ const PhoenixdManager = {
   async createInvoice(satAmount, memo) {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
-      // phoenixd usa amountSat en query params
-      const res = await fetch(`${url}/receive?amountSat=${satAmount}&description=${encodeURIComponent(memo)}`, {
+      const params = new URLSearchParams();
+      params.append("amountSat", satAmount);
+      params.append("description", memo);
+
+      const res = await fetch(`${url}/createinvoice`, {
         method: "POST",
-        headers: { Authorization: this.authHeader }
+        headers: { 
+          Authorization: this.authHeader,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params
       });
       if (!res.ok) throw new Error(`Phoenixd ${res.status}: ${await res.text()}`);
       const data = await res.json();
@@ -102,8 +109,8 @@ const PhoenixdManager = {
       });
       if (!res.ok) return false;
       const data = await res.json();
-      // data.status puede ser "pending" o "received"
-      return data.status === "received";
+      // Phoenixd return data.isPaid boolean
+      return data.isPaid === true;
     } catch (err) {
       return false;
     }
@@ -112,13 +119,24 @@ const PhoenixdManager = {
   async payWinner(invoice) {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
-      const res = await fetch(`${url}/payinvoice?invoice=${invoice}`, {
+      const params = new URLSearchParams();
+      params.append("invoice", invoice);
+
+      const res = await fetch(`${url}/payinvoice`, {
         method: "POST",
-        headers: { Authorization: this.authHeader }
+        headers: { 
+          Authorization: this.authHeader,
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params
       });
       if (!res.ok) throw new Error(`Phoenixd ${res.status}: ${await res.text()}`);
       const data = await res.json();
-      return { success: true, preimage: data.paymentPreimage };
+      // Phoenixd returns status "succeeded", "failed", or "pending"
+      if (data.status === "failed") {
+        throw new Error(data.reason || "Payment failed");
+      }
+      return { success: true, preimage: data.preimage };
     } catch (err) {
       console.error("[Lightning] Phoenixd error paying winner:", err.message);
       return { success: false, error: err.message };
