@@ -15,10 +15,10 @@ class QuizEngine {
       code: roomCode,
       hostSocketId,
       questions,                // array of questions selected for this room
-      entryFee,                 // cost in sats to join (Phase 3)
-      poolAmount: 0,            // sum of all paid entry fees (Phase 3)
+      entryFee,                 // cost in sats to join
+      poolAmount: 0,            // sum of all paid entry fees
       players: new Map(),       // playerId -> player object
-      pendingPlayers: new Map(),// paymentHash -> player object (Phase 3)
+      pendingPlayers: new Map(),// paymentHash -> player object (waiting for settlement)
       state: "lobby",           // lobby | question | results | finished
       currentQuestionIndex: -1, // index into room.questions
       questionTimer: null,      // server-side auto-end timeout handle (timer expires)

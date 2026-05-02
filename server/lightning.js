@@ -48,6 +48,8 @@ async function init() {
 }
 
 // ─── Phoenixd Manager ─────────────────────────────────────────────────────────
+// Support for phoenixd (https://github.com/acinq/phoenixd)
+// Uses Basic Auth and form-encoded (x-www-form-urlencoded) POST requests.
 
 const PhoenixdManager = {
   get authHeader() {
@@ -55,6 +57,7 @@ const PhoenixdManager = {
     return "Basic " + Buffer.from(":" + key).toString("base64");
   },
 
+  /** Verifies connectivity and retrieves NodeId */
   async checkStatus() {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
@@ -71,6 +74,7 @@ const PhoenixdManager = {
     }
   },
 
+  /** Creates a BOLT11 invoice via /createinvoice */
   async createInvoice(satAmount, memo) {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
@@ -90,7 +94,7 @@ const PhoenixdManager = {
       const data = await res.json();
       return {
         success: true,
-        paymentRequest: data.serialized, // BOLT11
+        paymentRequest: data.serialized,
         paymentHash: data.paymentHash,
         satAmount,
         memo
@@ -101,6 +105,7 @@ const PhoenixdManager = {
     }
   },
 
+  /** Checks if an incoming payment hash is settled via /payments/incoming/{hash} */
   async isPaid(paymentHash) {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
@@ -109,13 +114,13 @@ const PhoenixdManager = {
       });
       if (!res.ok) return false;
       const data = await res.json();
-      // Phoenixd return data.isPaid boolean
       return data.isPaid === true;
     } catch (err) {
       return false;
     }
   },
 
+  /** Pays a BOLT11/BOLT12 invoice via /payinvoice */
   async payWinner(invoice) {
     const url = process.env.PHOENIXD_URL || "http://localhost:9740";
     try {
@@ -132,7 +137,6 @@ const PhoenixdManager = {
       });
       if (!res.ok) throw new Error(`Phoenixd ${res.status}: ${await res.text()}`);
       const data = await res.json();
-      // Phoenixd returns status "succeeded", "failed", or "pending"
       if (data.status === "failed") {
         throw new Error(data.reason || "Payment failed");
       }

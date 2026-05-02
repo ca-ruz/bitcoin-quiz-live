@@ -202,7 +202,7 @@ io.on("connection", (socket) => {
 
     const result = quizEngine.joinRoom(roomCode, nickname, socket.id);
 
-    // Phase 4: Gated Entry
+    // If entry fee is required, generate invoice and wait for payment
     if (result.paymentRequired) {
       const invoice = await lightning.createInvoice(result.entryFee, `Join Quiz: ${nickname}`);
       if (invoice.success) {
@@ -450,4 +450,6 @@ server.listen(PORT, async () => {
   console.log(`  Lightning: ${lightning.isConfigured() ? lightning.activeMethod().toUpperCase() : "not configured"}`);
   console.log(`  Entry Fee: ${ENTRY_FEE_SATS} sats`);
   console.log(`  Questions: ${QUESTION_COUNT} of ${allQuestions.length} (random)\n`);
+});
+n`);
 });
