@@ -1,7 +1,7 @@
 // lightning.js — Integración con motores Lightning (Phoenixd, Breez Liquid, MDK, Legacy)
 
 const https = require("https");
-const fetch = require("node-fetch");
+// No node-fetch needed in Node 18+ (using global fetch)
 
 // ─── Motores Lightning ────────────────────────────────────────────────────────
 
