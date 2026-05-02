@@ -5,13 +5,12 @@ const fetch = require("node-fetch");
 
 // ─── Motores Lightning ────────────────────────────────────────────────────────
 
-const LN_ENGINE = (process.env.LN_ENGINE || "none").toLowerCase();
-
 /**
  * Retorna el método activo. Si LN_ENGINE es 'none', busca configuración legado.
  */
 function activeMethod() {
-  if (LN_ENGINE !== "none") return LN_ENGINE;
+  const engine = (process.env.LN_ENGINE || "none").toLowerCase();
+  if (engine !== "none") return engine;
 
   // Fallback legado (Manual Mode)
   if (process.env.NWC_URL && process.env.NWC_URL.startsWith("nostr+walletconnect://")) {
