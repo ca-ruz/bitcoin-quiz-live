@@ -26,6 +26,9 @@
       font-size: .75rem;
       opacity: .75;
       text-overflow: ellipsis;
+      border-color: rgba(255,119,0,.45);
+      color: rgba(255,119,0,.8);
+      box-shadow: 0 0 12px rgba(255,119,0,.16);
     }
     #payment-request:hover,
     #payment-request:focus {
@@ -240,14 +243,33 @@
     showScreen("screen-payment");
   });
 
+  async function copyToClipboard(text, sourceEl) {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+
+    sourceEl.focus();
+    sourceEl.select();
+    sourceEl.setSelectionRange(0, text.length);
+    if (!document.execCommand("copy")) {
+      throw new Error("copy failed");
+    }
+    sourceEl.setSelectionRange(0, 0);
+    sourceEl.blur();
+  }
+
   function copyPaymentRequest() {
     const el = document.getElementById("payment-request");
     const paymentRequest = el.value;
     if (!paymentRequest) return;
 
-    navigator.clipboard.writeText(paymentRequest).then(() => {
+    copyToClipboard(paymentRequest, el).then(() => {
       el.classList.add("copied");
-      setTimeout(() => el.classList.remove("copied"), 1000);
+      setTimeout(() => el.classList.remove("copied"), 1800);
+    }).catch(() => {
+      el.focus();
+      el.select();
     });
   }
 
